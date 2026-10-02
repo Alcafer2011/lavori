@@ -1,0 +1,13 @@
+{
+  "name": "I miei lavori",
+  "short_name": "Lavori",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#101214",
+  "theme_color": "#101214",
+  "icons": [
+    { "src": "img/icona.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "img/icona-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "img/icona-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

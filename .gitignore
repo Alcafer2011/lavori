@@ -1,0 +1,4 @@
+node_modules/
+*.parziale
+.segreti/
+__pycache__/
