@@ -144,9 +144,11 @@
       if (padrone) segno = f.originale_sul_pc ? '<span class="segno" title="Originale al sicuro sul PC">' + IC.spunta + '</span>'
         : '<span class="segno attesa" title="Originale in attesa del PC">' + IC.orologio + '</span>';
       const scelta = S.scegliendo && S.scelte.has(f.id);
-      html += '<button class="scatto' + (scelta ? ' scelta' : '') + '" data-foto="' + i + '" aria-label="Foto ' + (i + 1) + '">' +
+      const arrivo = !f.miniatura;
+      html += '<button class="scatto' + (scelta ? ' scelta' : '') + (arrivo ? ' arrivo' : '') + '" data-foto="' + i + '" aria-label="Foto ' + (i + 1) + (arrivo ? ', in arrivo' : '') + '">' +
         (S.scegliendo ? '<span class="spunta"></span>' : '') +
-        '<img src="' + esc(D.urlFoto(f.miniatura)) + '" alt="" loading="lazy" decoding="async">' + segno + '</button>';
+        (arrivo ? '<span class="arrivo-testo">In arrivo<small>dal Comando Rapido: il PC la prepara</small></span>'
+          : '<img src="' + esc(D.urlFoto(f.miniatura)) + '" alt="" loading="lazy" decoding="async">') + segno + '</button>';
     });
     return html + '</div>';
   }
@@ -339,6 +341,72 @@
     };
   }
 
+  // ---------- Comando Rapido dell'iPhone ----------
+  function apriComando() {
+    const { f, chiudi } = foglio('<h2>Comando Rapido</h2><p class="spiega">Sull\'iPhone costruisci una volta sola il comando <b>"Salva lavori"</b> (15-20 minuti). Poi per sempre: ' +
+      'lo tocchi, scegli l\'album e le foto, le salva qui e ti chiede <b>"Le cancello dal telefono?"</b>.</p>' +
+      '<p class="spiega">Una foto viene cancellata <b>solo se è arrivata davvero</b>. Le cancellate restano 30 giorni in "Eliminati di recente" dell\'iPhone.</p>' +
+      '<p class="spiega">Ora preparo i dati da copiare nel comando (un indirizzo, una chiave e una password <b>solo per il comando</b>, non la tua). ' +
+      'Se il comando c\'è già, la sua password vecchia smette di valere e va rimessa nel passo 1.</p>' +
+      '<div class="tasti-riga fine"><button class="tasto" data-chiudi>Annulla</button><button class="tasto pieno" data-via>Prepara i dati</button></div>', { senzaFuoco: true });
+    f.querySelector('[data-via]').onclick = async e => {
+      let acc;
+      try { acc = await conAttesa(e.currentTarget, () => D.nuovoAccessoComando()); } catch (x) { return avvisa(x.message, true); }
+      chiudi(); guidaComando(acc);
+    };
+  }
+  function guidaComando(acc) {
+    const U = window.CONFIG.supabaseUrl.replace(/\/$/, ''), K = window.CONFIG.supabaseKey;
+    let n = 0;
+    const val = (cosa, testo) => '<div class="valore"><span>' + esc(cosa) + '</span><code>' + esc(testo) + '</code><button class="tasto piccolo" data-copia-val="' + esc(testo) + '">Copia</button></div>';
+    const passo = (titolo, corpo) => '<li class="passo"><b class="passo-n">' + (++n) + '</b><div><h4>' + titolo + '</h4>' + corpo + '</div></li>';
+    const testate = '<p>Tocca la freccetta <b>›</b> per le opzioni. <b>Metodo</b>: <b>POST</b>. <b>Intestazioni</b> → "Aggiungi nuova intestazione" due volte:</p>' +
+      val('chiave', 'apikey') + val('valore', K) + val('chiave', 'Authorization') +
+      '<p>come valore scrivi <code>Bearer</code> con uno spazio dopo, poi tocca la variabile <b>Token</b> che compare sopra la tastiera.</p>';
+    const html = '<h2>Salva lavori</h2><p class="spiega">Fallo con calma, un passo alla volta. Per aggiungere un\'azione: tocca <b>"Cerca azioni"</b> in basso, scrivi il nome, toccala. ' +
+      'Sotto ogni passo ci sono i valori: tocca <b>Copia</b> e poi incolla nel comando.</p>' +
+      '<div class="esito male"><p><b>La password qui sotto la vedi solo adesso.</b> Se chiudi prima di averla messa nel comando, rifai "Prepara i dati".</p></div><ol class="passi">' +
+      passo('Apri l\'app "Comandi"', '<p>È l\'app con l\'icona viola e blu. Tocca <b>+</b> in alto a destra, poi il nome in alto e chiamalo:</p>' + val('nome', 'Salva lavori')) +
+      passo('Ottieni contenuti dell\'URL <small>(entra)</small>', '<p>Tocca <b>URL</b> e incolla:</p>' + val('URL', U + '/auth/v1/token?grant_type=password') +
+        '<p>Tocca <b>›</b>. <b>Metodo</b>: <b>POST</b>. <b>Intestazioni</b> → "Aggiungi nuova intestazione":</p>' + val('chiave', 'apikey') + val('valore', K) +
+        '<p><b>Corpo della richiesta</b>: <b>JSON</b>. "Aggiungi nuovo campo" → <b>Testo</b>, due volte:</p>' +
+        val('chiave', 'email') + val('valore', acc.email) + val('chiave', 'password') + val('valore', acc.password)) +
+      passo('Ottieni valore del dizionario', '<p>Deve dire "Ottieni <b>Valore</b> per <b>Chiave</b> in Contenuti dell\'URL". Tocca <b>Chiave</b> e scrivi:</p>' + val('chiave', 'access_token')) +
+      passo('Imposta variabile', '<p>Tocca <b>Nome variabile</b> e scrivi:</p>' + val('nome', 'Token')) +
+      passo('Ottieni contenuti dell\'URL <small>(gli album)</small>', '<p>URL:</p>' + val('URL', U + '/rest/v1/rpc/elenco_album') + testate +
+        '<p><b>Corpo della richiesta</b>: <b>JSON</b>, senza campi.</p>') +
+      passo('Scegli dall\'elenco', '<p>Lascia "Contenuti dell\'URL". Tocca <b>›</b> e come domanda scrivi:</p>' + val('domanda', 'In quale album?')) +
+      passo('Imposta variabile', val('nome', 'Album')) +
+      passo('Seleziona foto', '<p>Tocca <b>›</b> e accendi <b>Seleziona più elementi</b>.</p>') +
+      passo('Ripeti con ognuno', '<p>Compare con "Fine ripetizione" sotto. <b>I passi da 10 a 15 vanno DENTRO</b>, fra "Ripeti con ognuno" e "Fine ripetizione": se un\'azione finisce fuori, trascinala dentro tenendola premuta.</p>') +
+      passo('Ottieni contenuti dell\'URL <small>(prenota il posto)</small>', '<p>URL:</p>' + val('URL', U + '/rest/v1/rpc/comando_prepara') + testate +
+        '<p><b>Corpo della richiesta</b>: <b>JSON</b> → "Aggiungi nuovo campo" → <b>Testo</b>: chiave</p>' + val('chiave', 'album') + '<p>e come valore tocca la variabile <b>Album</b>.</p>') +
+      passo('Ottieni valore del dizionario', val('chiave', 'base')) +
+      passo('Imposta variabile', val('nome', 'Base')) +
+      passo('Ottieni contenuti dell\'URL <small>(manda la foto)</small>', '<p>In <b>URL</b> incolla questo e <b>subito dopo, senza spazi</b>, tocca la variabile <b>Base</b>:</p>' +
+        val('URL', U + '/storage/v1/object/originali/') + testate +
+        '<p><b>Corpo della richiesta</b>: <b>File</b>. Tocca <b>File</b> e scegli la variabile <b>Elemento ripetuto</b>.</p>') +
+      passo('Ottieni valore del dizionario', '<p>Chiave (con la <b>K maiuscola</b>):</p>' + val('chiave', 'Key')) +
+      passo('Se', '<p>Deve dire "Se <b>Valore del dizionario</b> <b>ha un valore</b>". Compaiono "Altrimenti" e "Fine se".</p>' +
+        '<p>Subito sotto "Se" (prima di "Altrimenti") metti l\'azione <b>Aggiungi a variabile</b>: aggiungi <b>Elemento ripetuto</b> alla variabile</p>' + val('nome', 'DaCancellare') +
+        '<p>"Altrimenti" resta vuoto: la foto non arrivata non si cancella.</p>') +
+      passo('Conta <small>(dopo "Fine ripetizione", fuori dal ripeti)</small>', '<p>"Conta <b>Elementi</b> in" → tocca e scegli la variabile <b>DaCancellare</b>.</p>') +
+      passo('Mostra avviso', '<p>Come testo scrivi <i>Salvate</i>, tocca la variabile <b>Conteggio</b>, poi scrivi:</p>' + val('testo', ' foto. Le cancello dal telefono?') +
+        '<p>Tocca <b>›</b> e lascia acceso <b>Mostra Annulla</b>: se tocchi Annulla non cancella niente.</p>') +
+      passo('Elimina foto', '<p>Tocca il campo e scegli la variabile <b>DaCancellare</b>. Poi <b>Fine</b> in alto a destra.</p>') +
+      passo('La prima volta', '<p>Fai una prova con <b>1 o 2 foto</b> qualsiasi. L\'iPhone chiede dei permessi ("Consenti sempre" per supabase.co e per le Foto) e alla fine conferma l\'eliminazione. ' +
+        'Controlla qui nell\'album: la foto compare come "In arrivo" e dopo qualche minuto, quando il PC l\'ha preparata, diventa normale con il segno verde.</p>' +
+        '<p>Per averlo a portata: nel comando tocca il nome in alto → <b>Aggiungi a Home</b>.</p>') +
+      '</ol><div class="tasti-riga fine"><button class="tasto pieno" data-chiudi>Ho finito</button></div>';
+    const { f } = foglio(html, { senzaFuoco: true });
+    f.classList.add('largo');
+    f.addEventListener('click', async e => {
+      const b = e.target.closest('[data-copia-val]'); if (!b) return;
+      try { await navigator.clipboard.writeText(b.dataset.copiaVal); b.textContent = 'Copiato ✓'; setTimeout(() => { b.textContent = 'Copia'; }, 1600); }
+      catch { avvisa('Tieni premuto sul testo per copiarlo.'); }
+    });
+  }
+
   // ---------- il padrone di casa ----------
   async function aggiornaPadrone(soloStato) {
     const [album, sp, rec] = await Promise.all([soloStato ? S.album : D.album(), D.spazio().catch(() => null),
@@ -380,7 +448,7 @@
     }
     const foto = S.foto.get(a.id);
     if (S.ultimoDisegno !== 'album:' + a.id) disegnaAlbumPadrone(a, foto, true);
-    if (h.f) apriVisore(foto, h.f, a.id, true); else chiudiVisore();
+    if (h.f) apriVisore(foto.filter(x => x.miniatura), h.f, a.id, true); else chiudiVisore();
   }
 
   function disegnaAlbumPadrone(a, foto, inCima) {
@@ -406,7 +474,7 @@
     const ca = app.querySelector('[data-carica]'); if (ca) ca.onclick = () => apriCarica(a.id);
     app.querySelectorAll('[data-foto]').forEach(b => b.onclick = () => {
       const f = foto[+b.dataset.foto];
-      if (!S.scegliendo) return vai(a.id, f.id);
+      if (!S.scegliendo) return f.miniatura ? vai(a.id, f.id) : avvisa('Questa foto è appena arrivata dall\'iPhone: fra pochi minuti il PC la prepara.');
       if (S.scelte.has(f.id)) S.scelte.delete(f.id); else S.scelte.add(f.id);
       b.classList.toggle('scelta', S.scelte.has(f.id));
       aggiornaBarra();
@@ -567,9 +635,13 @@
       'Codice di recupero: ' + (S.recupero ? '<b>creato ' + esc(quando(S.recupero.creato)) + '</b>' : '<b style="color:var(--rosso)">non ancora creato</b>') + '</p>' +
       '<div class="tasti-riga"><button class="tasto" data-cambia-pw>' + IC.chiave + 'Cambia password</button>' +
       '<button class="tasto" data-recupero>' + IC.chiave + (S.recupero ? 'Codice di recupero nuovo' : 'Crea codice di recupero') + '</button></div>' +
+      '<h3 class="sotto-titolo">iPhone: carica e cancella</h3>' +
+      '<p class="spiega">Con un Comando Rapido scegli le foto, le salvi qui e alla fine ti chiede se cancellarle dal telefono.</p>' +
+      '<div class="tasti-riga"><button class="tasto" data-comando>' + IC.carica + 'Comando Rapido per iPhone</button></div>' +
       '<div class="tasti-riga" style="margin-top:22px"><button class="tasto" data-esci>Esci</button><span style="flex:1"></span><button class="tasto" data-chiudi>Chiudi</button></div>', { senzaFuoco: true });
     f.querySelector('[data-cambia-pw]').onclick = () => { chiudi(); apriNuovaPassword(false); };
     f.querySelector('[data-recupero]').onclick = () => { chiudi(); apriCodiceRecupero(); };
+    f.querySelector('[data-comando]').onclick = () => { chiudi(); apriComando(); };
     const form = f.querySelector('form');
     form.onsubmit = async e => {
       e.preventDefault();
@@ -587,7 +659,9 @@
     const { f, chiudi } = foglio('<h2>Carica foto</h2><div data-passo1><p class="spiega">In quale album?</p><div class="scelte" data-scelte></div>' +
       '<label class="tasto pieno" style="width:100%;margin-top:18px" data-prendi>' + IC.carica + 'Scegli le foto dal telefono' +
       '<input type="file" accept="image/*" multiple hidden></label>' +
-      '<p class="spiega" style="margin-top:12px">Puoi sceglierne quante vuoi. Quelle già caricate vengono saltate da sole.</p></div>' +
+      '<p class="spiega" style="margin-top:12px">Puoi sceglierne quante vuoi. Quelle già caricate vengono saltate da sole.</p>' +
+      (/iPhone|iPad/.test(navigator.userAgent) ? '<p class="spiega">Hai l\'iPhone? Con il <b>Comando Rapido</b> le carichi e le cancelli dal telefono in un colpo solo: Impostazioni › Comando Rapido per iPhone.</p>' : '') +
+      '</div>' +
       '<div data-passo2 hidden></div><div class="tasti-riga fine"><button class="tasto" data-chiudi>Chiudi</button></div>',
       { senzaFuoco: true, bloccato: () => S.caricando && !confirm('Il caricamento è in corso. Interrompere?'), chiuso: () => { blocco = 'fermo'; } });
     const scelte = f.querySelector('[data-scelte]'), prendi = f.querySelector('[data-prendi]'), input = prendi.querySelector('input');

@@ -153,6 +153,7 @@
       async nuovaPassword(password) { ok(await sb.auth.updateUser({ password })); },
       async statoRecupero() { return ok(await sb.rpc('stato_recupero')); },
       async creaCodiceRecupero() { return ok(await sb.rpc('nuovo_codice_recupero')); },
+      async nuovoAccessoComando() { return ok(await sb.rpc('nuovo_accesso_comando')); },
       async recupera(codice, email, password) {
         const r = ok(await sb.rpc('recupera_accesso', { codice, nuova_email: email, nuova_password: password }));
         if (!r || !r.ok) throw new Error((r && r.errore) || 'Recupero non riuscito.');
@@ -272,6 +273,7 @@
       async nuovaPassword() { await aspetta(200); },
       async statoRecupero() { return db.recupero || null; },
       async creaCodiceRecupero() { db.recupero = { creato: new Date().toISOString() }; return 'PROV-AAAA-BBBB-CCCC-DDDD'; },
+      async nuovoAccessoComando() { return { email: 'comando.iphone@example.com', password: 'prova' + Math.random().toString(36).slice(2, 12) }; },
       async recupera(codice, email) {
         if (codice.replace(/[^A-Z0-9]/gi, '').toUpperCase() !== 'PROVAAAABBBBCCCCDDDD') throw new Error('Codice di recupero sbagliato.');
         db.utente = { id: 'u1', email, admin: true }; db.recupero = null;
