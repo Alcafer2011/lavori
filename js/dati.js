@@ -93,6 +93,9 @@
       [/Registrazione chiusa|Database error saving new user/i, 'La registrazione è chiusa: l\'account esiste già.'],
       [/already registered|already exists/i, 'Questa email è già registrata: usa "Entra".'],
       [/Password should be at least/i, 'La password deve avere almeno 8 caratteri.'],
+      [/should be different from the old/i, 'La nuova password deve essere diversa da quella di prima.'],
+      [/Email not confirmed/i, 'Email non ancora confermata.'],
+      [/Auth session missing|JWT expired|invalid JWT/i, 'Il link è scaduto: chiedine uno nuovo.'],
       [/Unable to validate email|invalid format|email address .* is invalid/i, 'Email non valida.'],
       [/rate limit|too many/i, 'Troppi tentativi: riprova fra qualche minuto.'],
       [/Failed to fetch|NetworkError|Load failed|network/i, 'Connessione assente o debole: riprova.'],
@@ -106,7 +109,10 @@
 
   // ======================= SUPABASE =======================
   function motoreSupabase() {
-    const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseKey);
+    // l'accesso resta ricordato nel telefono e si rinnova da solo
+    const sb = window.supabase.createClient(C.supabaseUrl, C.supabaseKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
     const baseFoto = C.supabaseUrl.replace(/\/$/, '') + '/storage/v1/object/public/foto/';
     const ok = r => { if (r.error) throw traduci(r.error); return r.data; };
     async function riprova(fn, volte = 3) {
@@ -132,8 +138,8 @@
         const { data } = await sb.auth.getSession();
         const s = data.session;
         if (!s) return null;
-        const a = await sb.rpc('e_admin');
-        return { id: s.user.id, email: s.user.email, admin: a.data === true };
+        const a = await riprova(async () => ok(await sb.rpc('e_admin')));  // linea che cade: errore, non "uscita"
+        return { id: s.user.id, email: s.user.email, admin: a === true };
       },
       async entra(email, password) { ok(await sb.auth.signInWithPassword({ email, password })); },
       async registra(email, password) {
@@ -141,6 +147,17 @@
         if (!d.session) ok(await sb.auth.signInWithPassword({ email, password }));
       },
       async esci() { await sb.auth.signOut(); },
+      async passwordDimenticata(email) {
+        ok(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname }));
+      },
+      async nuovaPassword(password) { ok(await sb.auth.updateUser({ password })); },
+      async statoRecupero() { return ok(await sb.rpc('stato_recupero')); },
+      async creaCodiceRecupero() { return ok(await sb.rpc('nuovo_codice_recupero')); },
+      async recupera(codice, email, password) {
+        const r = ok(await sb.rpc('recupera_accesso', { codice, nuova_email: email, nuova_password: password }));
+        if (!r || !r.ok) throw new Error((r && r.errore) || 'Recupero non riuscito.');
+        await this.entra(email, password);
+      },
 
       async impostazioni() { return ok(await sb.from('impostazioni').select('*').eq('id', 1).single()); },
       async salvaImpostazioni(campi) { ok(await sb.from('impostazioni').update(campi).eq('id', 1)); },
@@ -251,6 +268,14 @@
       async entra(email) { db.utente = { id: 'u1', email, admin: true }; },
       async registra(email) { db.utente = { id: 'u1', email, admin: true }; db.imp.registrazione_aperta = false; },
       async esci() { db.utente = null; },
+      async passwordDimenticata() { await aspetta(300); },
+      async nuovaPassword() { await aspetta(200); },
+      async statoRecupero() { return db.recupero || null; },
+      async creaCodiceRecupero() { db.recupero = { creato: new Date().toISOString() }; return 'PROV-AAAA-BBBB-CCCC-DDDD'; },
+      async recupera(codice, email) {
+        if (codice.replace(/[^A-Z0-9]/gi, '').toUpperCase() !== 'PROVAAAABBBBCCCCDDDD') throw new Error('Codice di recupero sbagliato.');
+        db.utente = { id: 'u1', email, admin: true }; db.recupero = null;
+      },
       async impostazioni() { return { ...db.imp }; },
       async salvaImpostazioni(c) { Object.assign(db.imp, c); },
       async nuovoCodice(album) {
@@ -297,7 +322,11 @@
     return m;
   }
 
+  // arrivo dal link della mail "password dimenticata" (o link scaduto): lo si legge prima che Supabase pulisca l'indirizzo
+  const h = new URLSearchParams(location.hash.slice(1));
+  const daLink = { recupero: h.get('type') === 'recovery', errore: h.get('error_description') };
   const vero = C.supabaseUrl && C.supabaseKey && window.supabase;
   window.DATI = vero ? motoreSupabase() : motoreProva();
   window.DATI.impronta = impronta;
+  window.DATI.daLink = daLink;
 })();

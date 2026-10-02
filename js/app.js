@@ -25,6 +25,10 @@
     matita: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
     spunta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
     orologio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>',
+    occhio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    occhioNo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+    whatsapp: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.4.8 3.2.6a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.3-.2-.6-.3z"/></svg>',
+    chiave: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"/></svg>',
     scegli: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>'
   };
   const marchio = '<img class="marchio" src="img/icona.svg" alt="">';
@@ -89,6 +93,22 @@
     const prima = bottone.innerHTML; bottone.disabled = true; bottone.innerHTML = '<span class="scintilla-gira" style="width:18px;height:18px;border-width:2px"></span>';
     try { return await fn(); } finally { bottone.disabled = false; bottone.innerHTML = prima; }
   }
+
+  // campo password con l'occhio per vederla mentre la si scrive
+  function campoPassword(nome, etichetta, completa) {
+    return '<label class="campo"><span>' + esc(etichetta) + '</span><div class="pw"><input name="' + nome + '" type="password" autocomplete="' + completa +
+      '" minlength="8" required autocapitalize="off" spellcheck="false"><button type="button" class="pw-occhio" data-occhio aria-label="Mostra la password" aria-pressed="false">' +
+      IC.occhio + '</button></div></label>';
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-occhio]'); if (!b) return;
+    e.preventDefault();
+    const i = b.parentNode.querySelector('input'), vedi = i.type === 'password';
+    i.type = vedi ? 'text' : 'password';
+    b.innerHTML = vedi ? IC.occhioNo : IC.occhio;
+    b.setAttribute('aria-pressed', String(vedi)); b.setAttribute('aria-label', vedi ? 'Nascondi la password' : 'Mostra la password');
+  });
+  const scriviErrore = (form, msg) => { const er = form.querySelector('.errore'); er.textContent = msg; er.hidden = false; };
 
   // ---------- pezzi di pagina ----------
   function testata(titolo, sottotitolo, tasti) {
@@ -222,13 +242,17 @@
       (nuovo ? '<p>Crea il tuo account. Sarai l\'unico a poter caricare e modificare: dopo di te la porta si chiude.</p>'
         : '<p>Questa galleria è privata. Per guardarla serve il link che ti è stato mandato. Se sei il proprietario, entra.</p>') +
       '<label class="campo"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>' +
-      '<label class="campo"><span>Password</span><input name="password" type="password" autocomplete="' + (nuovo ? 'new-password' : 'current-password') + '" minlength="8" required></label>' +
+      campoPassword('password', 'Password', nuovo ? 'new-password' : 'current-password') +
       '<p class="errore" hidden></p>' +
       '<button class="tasto pieno" type="submit">' + (nuovo ? 'Crea account' : 'Entra') + '</button>' +
       (aperta ? '<button class="collegamento" type="button" data-cambia>' + (nuovo ? 'Ho già un account: entra' : 'Prima volta? Crea il tuo account') + '</button>' : '') +
+      (nuovo ? '' : '<div class="aiuto-accesso"><button class="collegamento" type="button" data-dimenticata>Password dimenticata?</button>' +
+        '<button class="collegamento" type="button" data-perso>Ho perso email e password</button></div>') +
       '</form></div>';
     const form = app.querySelector('form'), err = form.querySelector('.errore');
     const c = form.querySelector('[data-cambia]'); if (c) c.onclick = () => disegnaIngresso(!nuovo);
+    const di = form.querySelector('[data-dimenticata]'); if (di) di.onclick = () => apriPasswordDimenticata(form.email.value.trim());
+    const pe = form.querySelector('[data-perso]'); if (pe) pe.onclick = () => apriRecuperoCodice();
     form.onsubmit = async e => {
       e.preventDefault(); err.hidden = true;
       const email = form.email.value.trim(), pw = form.password.value;
@@ -240,10 +264,86 @@
     };
   }
 
+  // ---------- recupero dell'accesso ----------
+  function apriPasswordDimenticata(email) {
+    const { f } = foglio('<h2>Password dimenticata</h2><p class="spiega">Scrivi l\'email con cui sei entrato: ti arriva un link per scegliere una password nuova.</p>' +
+      '<form><label class="campo"><span>Email</span><input name="email" type="email" autocomplete="username" value="' + esc(email) + '" required></label>' +
+      '<p class="errore" hidden></p><div class="tasti-riga fine"><button type="button" class="tasto" data-chiudi>Annulla</button>' +
+      '<button class="tasto pieno" type="submit">Mandami il link</button></div></form>');
+    const form = f.querySelector('form');
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const em = form.email.value.trim(); if (!em) return;
+      try {
+        await conAttesa(form.querySelector('[type=submit]'), () => D.passwordDimenticata(em));
+        form.outerHTML = '<div class="esito"><p><b>Fatto.</b> Se ' + esc(em) + ' è l\'email giusta, fra poco ti arriva una mail: apri il link e scegli la password nuova.</p>' +
+          '<p>Non arriva? Guarda nella posta indesiderata. Non ricordi nemmeno l\'email? Usa il <b>codice di recupero</b>.</p></div>' +
+          '<div class="tasti-riga fine"><button class="tasto" data-chiudi>Chiudi</button></div>';
+        f.querySelector('[data-chiudi]').onclick = () => f.parentNode.remove();
+      } catch (x) { scriviErrore(form, x.message); }
+    };
+  }
+  function apriRecuperoCodice() {
+    const { f, chiudi } = foglio('<h2>Recupera l\'accesso</h2><p class="spiega">Hai perso email e password? Con il <b>codice di recupero</b> (quello di 20 lettere e numeri che hai salvato) ' +
+      'scegli una email e una password nuove. Gli accessi vecchi, per esempio su un telefono perso, vengono chiusi.</p><form>' +
+      '<label class="campo"><span>Codice di recupero</span><input name="codice" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" required></label>' +
+      '<label class="campo"><span>Email nuova (anche la stessa di prima)</span><input name="email" type="email" autocomplete="username" required></label>' +
+      campoPassword('password', 'Password nuova (almeno 8 caratteri)', 'new-password') +
+      '<p class="errore" hidden></p><div class="tasti-riga fine"><button type="button" class="tasto" data-chiudi>Annulla</button>' +
+      '<button class="tasto pieno" type="submit">Recupera</button></div></form>' +
+      '<p class="spiega" style="margin-top:16px">Hai perso anche il codice? Il PC di casa può rimetterti dentro: chiedi a chi ti ha fatto l\'app.</p>');
+    const form = f.querySelector('form');
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const codice = form.codice.value.trim(), em = form.email.value.trim(), pw = form.password.value;
+      if (!codice || !em || pw.length < 8) return scriviErrore(form, 'Scrivi il codice, l\'email e una password di almeno 8 caratteri.');
+      try {
+        await conAttesa(form.querySelector('[type=submit]'), () => D.recupera(codice, em, pw));
+        chiudi(); await partenza();
+        avvisa('Sei di nuovo dentro. Ora crea un codice di recupero nuovo: quello vecchio non vale più.');
+      } catch (x) { scriviErrore(form, x.message); }
+    };
+  }
+  function apriNuovaPassword(obbligata) {
+    const { f, chiudi } = foglio('<h2>' + (obbligata ? 'Scegli la password nuova' : 'Cambia password') + '</h2>' +
+      '<p class="spiega">Almeno 8 caratteri. Tocca l\'occhio per vedere cosa scrivi.</p><form>' +
+      campoPassword('password', 'Password nuova', 'new-password') +
+      '<p class="errore" hidden></p><div class="tasti-riga fine">' + (obbligata ? '' : '<button type="button" class="tasto" data-chiudi>Annulla</button>') +
+      '<button class="tasto pieno" type="submit">Salva password</button></div></form>', { bloccato: () => obbligata });
+    const form = f.querySelector('form');
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const pw = form.password.value;
+      if (pw.length < 8) return scriviErrore(form, 'Almeno 8 caratteri.');
+      try {
+        await conAttesa(form.querySelector('[type=submit]'), () => D.nuovaPassword(pw));
+        obbligata = false; chiudi(); avvisa('Password cambiata.');
+      } catch (x) { scriviErrore(form, x.message); }
+    };
+  }
+  async function apriCodiceRecupero() {
+    if (S.recupero && !await chiedi('Fare un codice nuovo?', 'Il codice di recupero che hai già smette di valere: dovrai salvare quello nuovo.', 'Fai codice nuovo')) return;
+    let codice;
+    try { codice = await D.creaCodiceRecupero(); } catch (e) { return avvisa(e.message, true); }
+    S.recupero = { creato: new Date().toISOString() };
+    const msg = 'Codice di recupero di "' + S.imp.titolo + '" (serve se perdo email e password):\n' + codice + '\n' + location.origin + location.pathname;
+    const { f } = foglio('<h2>Codice di recupero</h2><p class="spiega">Se un giorno perdi <b>email e password</b>, con questo codice rientri e ne scegli di nuove. ' +
+      'Salvalo <b>fuori dal telefono</b>: mandalo a te stesso su WhatsApp, oppure scrivilo su un foglio. <b>Non darlo a nessuno</b>: chi lo ha può prendere il tuo account.</p>' +
+      '<div class="codice-recupero">' + esc(codice) + '</div>' +
+      '<div class="tasti-riga"><a class="tasto whatsapp" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(msg) + '">' + IC.whatsapp + 'Mandalo a me</a>' +
+      '<button class="tasto" data-copia>Copia</button></div>' +
+      '<p class="spiega" style="margin-top:14px">Dopo che chiudi questa finestra il codice non si può più rivedere (nel database c\'è solo la sua impronta). Puoi sempre farne uno nuovo.</p>' +
+      '<div class="tasti-riga fine"><button class="tasto pieno" data-chiudi>L\'ho salvato</button></div>', { senzaFuoco: true, chiuso: () => { S.ultimoDisegno = ''; disegna(); } });
+    f.querySelector('[data-copia]').onclick = async () => {
+      try { await navigator.clipboard.writeText(codice); avvisa('Codice copiato.'); } catch { avvisa('Tieni premuto sul codice per copiarlo.'); }
+    };
+  }
+
   // ---------- il padrone di casa ----------
   async function aggiornaPadrone(soloStato) {
-    const [album, sp] = await Promise.all([soloStato ? S.album : D.album(), D.spazio().catch(() => null)]);
-    S.album = album; S.spazio = sp;
+    const [album, sp, rec] = await Promise.all([soloStato ? S.album : D.album(), D.spazio().catch(() => null),
+      D.statoRecupero().catch(() => S.recupero)]);
+    S.album = album; S.spazio = sp; S.recupero = rec;
   }
 
   async function disegnaPadrone(h) {
@@ -254,6 +354,10 @@
       app.innerHTML = '<div class="pagina">' +
         testata(S.imp.titolo, S.imp.sottotitolo, '<button class="tasto tondo" data-condividi title="Condividi tutto" aria-label="Condividi tutto">' + IC.condividi + '</button>' +
           '<button class="tasto tondo" data-impostazioni title="Impostazioni" aria-label="Impostazioni">' + IC.ingranaggio + '</button>') +
+        (S.recupero ? '' : '<div class="targa allarme"><b>Manca il codice di recupero.</b> Se un giorno perdi email e password, senza codice non potresti più entrare. ' +
+          'Crealo ora, ci vuole un minuto.<div class="tasti-riga" style="margin-top:10px"><button class="tasto piccolo" data-recupero>' + IC.chiave + 'Crea il codice</button></div></div>') +
+        '<div class="tasti-riga invita"><a class="tasto whatsapp" target="_blank" rel="noopener" href="' + esc(linkWhatsApp(null)) + '">' + IC.whatsapp + 'Invita su WhatsApp</a>' +
+        '<button class="tasto" data-condividi2>' + IC.condividi + 'Altri modi</button></div>' +
         targaPC(S.spazio) +
         '<div class="album-griglia">' + S.album.map(a => lastra(a, true)).join('') +
         '<button class="lastra nuova" data-nuovo>' + IC.piu + 'Nuovo album</button></div>' +
@@ -263,6 +367,8 @@
       app.querySelector('[data-nuovo]').onclick = () => apriNuovoAlbum();
       app.querySelector('[data-carica]').onclick = () => apriCarica();
       app.querySelector('[data-condividi]').onclick = () => apriCondividi(null);
+      app.querySelector('[data-condividi2]').onclick = () => apriCondividi(null);
+      const rc = app.querySelector('[data-recupero]'); if (rc) rc.onclick = () => apriCodiceRecupero();
       app.querySelector('[data-impostazioni]').onclick = () => apriImpostazioni();
       return;
     }
@@ -285,7 +391,8 @@
       (a.descrizione ? '<p class="album-descrizione">' + esc(a.descrizione) + '</p>' : '') +
       '<div class="album-dati">' + fotoParola(foto.length) + '</div>' +
       '<div class="tasti-riga album-tasti">' +
-      '<button class="tasto" data-condividi>' + IC.condividi + 'Condividi</button>' +
+      '<a class="tasto whatsapp" target="_blank" rel="noopener" href="' + esc(linkWhatsApp(a)) + '">' + IC.whatsapp + 'Invita</a>' +
+      '<button class="tasto" data-condividi>' + IC.condividi + 'Link</button>' +
       '<button class="tasto" data-modifica>' + IC.matita + 'Nome</button>' +
       (foto.length ? '<button class="tasto" data-scegli>' + IC.scegli + 'Seleziona</button>' : '') + '</div></div>' +
       targaPC(S.spazio, { numero: foto.length, sul_pc: foto.filter(f => f.originale_sul_pc).length }) +
@@ -412,6 +519,12 @@
 
   // ---------- condividi ----------
   function linkDi(codice) { return location.origin + location.pathname + '?v=' + codice; }
+  function messaggioInvito(a) {
+    const link = linkDi(a ? a.codice : S.imp.codice_tutto);
+    return a ? 'Ciao! Qui puoi vedere le foto dei miei lavori: ' + a.nome + '\n' + link
+      : 'Ciao! Qui puoi vedere le foto dei miei lavori:\n' + link;
+  }
+  const linkWhatsApp = a => 'https://wa.me/?text=' + encodeURIComponent(messaggioInvito(a));
   function apriCondividi(a) {
     const codice = a ? a.codice : S.imp.codice_tutto;
     const link = linkDi(codice);
@@ -419,13 +532,13 @@
     const testo = (a ? a.nome + ' — ' : '') + S.imp.titolo;
     const { f, chiudi } = foglio('<h2>Condividi</h2><p class="spiega">Chi riceve questo link vede ' + cosa + ' e non può cambiare niente. Non serve nessun account.</p>' +
       '<div class="link-box">' + esc(link) + '</div><div class="tasti-riga">' +
-      (navigator.share ? '<button class="tasto pieno" data-invia>' + IC.condividi + 'Invia…</button>' : '') +
-      '<a class="tasto" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(testo + '\n' + link) + '">WhatsApp</a>' +
+      '<a class="tasto whatsapp" target="_blank" rel="noopener" href="' + esc(linkWhatsApp(a)) + '">' + IC.whatsapp + 'Manda su WhatsApp</a>' +
+      (navigator.share ? '<button class="tasto" data-invia>' + IC.condividi + 'Altre app…</button>' : '') +
       '<button class="tasto" data-copia>Copia link</button><a class="tasto" target="_blank" rel="noopener" href="' + esc(link) + '">Guarda come gli altri</a></div>' +
       '<p class="spiega" style="margin-top:22px">Hai mandato il link a qualcuno che non deve più vedere? Cambialo: quello vecchio smette di funzionare.</p>' +
       '<div class="tasti-riga"><button class="tasto pericolo piccolo" data-cambia>Cambia link</button><span style="flex:1"></span><button class="tasto" data-chiudi>Chiudi</button></div>', { senzaFuoco: true });
     const inv = f.querySelector('[data-invia]');
-    if (inv) inv.onclick = () => navigator.share({ title: testo, text: testo, url: link }).catch(() => {});
+    if (inv) inv.onclick = () => navigator.share({ title: testo, text: messaggioInvito(a).split('\n')[0], url: link }).catch(() => {});
     f.querySelector('[data-copia]').onclick = async () => {
       try { await navigator.clipboard.writeText(link); avvisa('Link copiato.'); } catch { avvisa('Tieni premuto sul link per copiarlo.'); }
     };
@@ -449,8 +562,14 @@
       '<div class="tasti-riga fine"><button class="tasto pieno" type="submit">Salva</button></div></form>' +
       '<p class="spiega" style="margin-top:20px">Spazio online: <b>' + ((sp.mb_foto || 0) + (sp.mb_originali || 0)) + ' MB su 1000</b> (circa 380 KB per foto). ' +
       'Foto in tutto: ' + (sp.totale || 0) + ', sul PC: ' + (sp.sul_pc || 0) + '.<br>Ultimo passaggio del PC: ' + esc(quando(sp.ultimo_pc)) + '.</p>' +
-      '<p class="spiega">Entrato come ' + esc(S.utente.email) + '</p>' +
-      '<div class="tasti-riga"><button class="tasto" data-esci>Esci</button><span style="flex:1"></span><button class="tasto" data-chiudi>Chiudi</button></div>', { senzaFuoco: true });
+      '<h3 class="sotto-titolo">Il tuo accesso</h3>' +
+      '<p class="spiega">Email: <b>' + esc(S.utente.email) + '</b><br>Il telefono ricorda l\'accesso: non serve rientrare ogni volta.<br>' +
+      'Codice di recupero: ' + (S.recupero ? '<b>creato ' + esc(quando(S.recupero.creato)) + '</b>' : '<b style="color:var(--rosso)">non ancora creato</b>') + '</p>' +
+      '<div class="tasti-riga"><button class="tasto" data-cambia-pw>' + IC.chiave + 'Cambia password</button>' +
+      '<button class="tasto" data-recupero>' + IC.chiave + (S.recupero ? 'Codice di recupero nuovo' : 'Crea codice di recupero') + '</button></div>' +
+      '<div class="tasti-riga" style="margin-top:22px"><button class="tasto" data-esci>Esci</button><span style="flex:1"></span><button class="tasto" data-chiudi>Chiudi</button></div>', { senzaFuoco: true });
+    f.querySelector('[data-cambia-pw]').onclick = () => { chiudi(); apriNuovaPassword(false); };
+    f.querySelector('[data-recupero]').onclick = () => { chiudi(); apriCodiceRecupero(); };
     const form = f.querySelector('form');
     form.onsubmit = async e => {
       e.preventDefault();
@@ -671,6 +790,9 @@
       return;
     }
     await disegna();
+    if (D.daLink.errore && !D.daLink.mostrato) { D.daLink.mostrato = true; avvisa('Il link della mail non vale più (scaduto o già usato): chiedine uno nuovo.', true); }
+    if (D.daLink.recupero && S.modo === 'padrone' && !D.daLink.mostrato) { D.daLink.mostrato = true; apriNuovaPassword(true); }
+    if (/access_token|error_description/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search);
   }
 
   // il padrone vede arrivare il segno verde senza ricaricare
